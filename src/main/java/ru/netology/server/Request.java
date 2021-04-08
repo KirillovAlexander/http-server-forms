@@ -1,6 +1,7 @@
 package ru.netology.server;
 
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,7 +19,6 @@ public class Request {
     private String body;
     private List<NameValuePair> queryParams;
 
-
     public Request() {
         this.headers = new ConcurrentHashMap<>();
         this.method = "";
@@ -27,28 +27,10 @@ public class Request {
         this.body = "";
     }
 
-    public void setRequestLine(String requestLine) {
-        final String[] parts = requestLine.split(" ");
-        this.method = parts[0];
-        this.path = parts[1];
-        this.version = parts[2];
-    }
-
-    public void setHeaders(String headers) {
-        final String[] parts = headers.split("\n");
-        for (String header: parts
-        ) {
-            String[] headerParts = header.split(":");
-            if (headerParts.length == 2) {
-                this.headers.put(headerParts[0], headerParts[1]);
-            }
-        }
-    }
-
     public boolean addHeader(String header) {
         String[] headerParts = header.split(":");
         if (headerParts.length == 2) {
-            this.headers.put(headerParts[0], headerParts[1]);
+            this.headers.put(headerParts[0], headerParts[1].replace(" ",""));
             return true;
         } else {
             return false;
@@ -75,23 +57,21 @@ public class Request {
         return method;
     }
 
-    public String getPath() {
-        return path;
-    }
-
-    public String getFullPath() {
-        return path;
-    }
-
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("\n" + method + " " + path + " " + version + "\n");
-        for (Map.Entry<String, String> entry : headers.entrySet()) {
-            sb.append(entry.getKey() + ":" + entry.getValue() + "\n");
+        try {
+            StringBuilder sb = new StringBuilder();
+            sb.append("\n" + method + " " + path + " " + version + "\n");
+            for (Map.Entry<String, String> entry : headers.entrySet())
+                sb.append(entry.getKey() + ":" + entry.getValue() + "\n");
+            sb.append("\n");
+            sb.append(body);
+            return sb.toString();
+        } catch (Exception e) {
+            System.out.print("Ошибка: ");
+            e.printStackTrace();
         }
-        sb.append(body);
-        return sb.toString();
+        return "";
     }
 
     public Optional<String> extractHeader(String header) {
@@ -102,10 +82,18 @@ public class Request {
                 .findFirst();
     }
 
-    public void getQueryParams() {
+    public void setQueryParams() {
         int delimiter = path.indexOf(QUERY_DELIMITER);
         if (delimiter == -1) return;
         queryParams = URLEncodedUtils.parse(path.substring(delimiter + 1), Charset.forName("UTF-8"));
+    }
+
+    public List<NameValuePair> getBodyParams() {
+        return URLEncodedUtils.parse(body, Charset.forName("UTF-8"));
+    }
+
+    public String getBody() {
+        return body;
     }
 
     public String getPathWithoutQueryParams() {
@@ -115,5 +103,20 @@ public class Request {
             System.out.println(path);
         }
         return path;
+    }
+
+    public Optional<String> getQueryParamValue(String queryParam) {
+        return queryParams.stream()
+                .filter(o -> o.getName().equals(queryParam))
+                .map(o -> o.getValue())
+                .findFirst();
+    }
+
+    public Optional<String> getHeaderValue(String header) {
+        return headers.entrySet()
+        .stream()
+        .filter(o -> o.getKey().equals(header))
+        .map(o -> o.getValue())
+        .findFirst();
     }
 }

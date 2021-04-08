@@ -1,10 +1,9 @@
 package ru.netology.server;
 
+import org.apache.http.NameValuePair;
+
 import java.io.*;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +12,8 @@ public class ServerRunnable implements Runnable {
 
     public static final String GET = "GET";
     public static final String POST = "POST";
+
+    private static final String FORM_URLENCODED = "application/x-www-form-urlencoded";
 
     private final Socket socket;
     private final List<String> validPaths;
@@ -29,6 +30,7 @@ public class ServerRunnable implements Runnable {
         final var allowedMethods = List.of(GET, POST);
         try (final BufferedInputStream in = new BufferedInputStream((socket.getInputStream()));
              final BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream())) {
+
             final int limit = 4096;
             in.mark(limit);
 
@@ -71,7 +73,7 @@ public class ServerRunnable implements Runnable {
             request.setMethod(method);
             request.setPath(path);
             request.setVersion(requestLine[2]);
-            request.getQueryParams();
+            request.setQueryParams();
 
             // ищем заголовки
             final byte[] headersDelimiter = new byte[]{'\r', '\n', '\r', '\n'};
@@ -104,6 +106,16 @@ public class ServerRunnable implements Runnable {
                     final byte[] bodyBytes = in.readNBytes(length);
                     final var body = new String(bodyBytes);
                     request.setBody(body);
+                    //Считаем параметры для Content-Type = application/x-www-form-urlencoded
+                    Optional<String> contentType = request.getHeaderValue("Content-Type");
+                    if (contentType.isPresent() && contentType.get().equals(FORM_URLENCODED)) {
+                        System.out.println("Параметры из тела: ");
+                        List<NameValuePair> bodyParams = request.getBodyParams();
+                        for (NameValuePair pair:
+                             bodyParams) {
+                            System.out.println(pair.getName() + ": " + pair.getValue());
+                        }
+                    }
                 }
             }
             System.out.println("Пришедший запрос: " + request);
